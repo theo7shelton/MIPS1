@@ -29,13 +29,25 @@ main:							# Begin main code
 	li $a1, 9					# define amount of characters to be read
 	syscall						# system call for keyboard input
 	
-	addi $s1, $zero, 0
-checkString: 
-	lb $t0, 0($a0)
-	beqz $t0, endFunc				# Check if current character is end of line character
-	li $t1, 10
-	beq $t0, $t1, endFunc				# End program if current character is newline character
+	li $s1, 0
+	li $t9, 0
+	li $t8, 0
 
+checkString: 				# Checks to see if string is valid. If not, branches to another part of the code
+	lb $t0, 0($a0)					# Load next byte into $t0
+	beqz $t0, endCheck				# Check if current character is end of line character
+	li $t1, 10
+	beq $t0, $t1, endCheck				# End program if current character is carriage return
+	li $t1, 0x00000020
+	bne $t1, $t0, notASpace
+      spaceCheck:
+	addi $a0, $a0, 1
+	beqz $t8, checkString				# check if there was a valid character before the space, if not ignore space
+	addiu $t9, $t9, 1				# Record space following valid character entry
+	j checkString					# jump to 	
+
+     notASpace:
+	 bne $t9, $zero, invalid			# Check if there was a sequence of character, any amount of spaces, then a character. If so branch to invalid
 		# Check if in range of 0-9 ASCII
 	li $t1, 0x0000003A
 	slt $t2, $t0, $t1				# Sets $t2 if t0 <3Ah
@@ -60,19 +72,27 @@ checkString:
 	add $s1, $s1, $s0
 
 	beqz $s1, invalid
-	addi $a0, $a0, 1
+	addiu $t8, $t8, 1				# Keep track of valid character entries 
+     	addi $a0, $a0, 1	
 	li $s1, 0
 	li $s0, 0
+
 	j checkString
 invalid: 
 	li $v0, 4					# load print string call code
 	la $a0, invalid_inputStr			# Print error message
 	syscall						# print buffer string
+	j endFunc
 
-endFunc:
+endCheck:
+	beqz $t8, invalid				# If no valid characters entered, it is invalid
+	# continue to conversion
+convertToInteger:
 	li $v0, 4
 	la $a0, resultStr
 	syscall
+	
+endFunc:
 	li $v0, 10
 
 					# Load exit code
